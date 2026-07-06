@@ -4,6 +4,7 @@ import pandas as pd
 from nasdaq_valuation.modeling import (
     add_required_growth_rates,
     build_sector_benchmarks,
+    prepare_inference_frame,
     prepare_modeling_frame,
 )
 
@@ -54,3 +55,15 @@ def test_prepare_modeling_frame_removes_invalid_rows():
     assert len(x) == 3
     assert len(y) == 3
     assert list(x.columns) == ["EV_to_EBITDA", "Price_to_Sales", "MarketCap", "EV_avg", "PS_avg"]
+
+
+def test_prepare_inference_frame_keeps_descriptive_score_as_target():
+    fundamentals = sample_fundamentals()
+    valuation = build_sector_benchmarks(fundamentals)
+
+    result = prepare_inference_frame(fundamentals, valuation)
+
+    assert "Undervalued_Z" in result.columns
+    assert "Revenue_log" in result.columns
+    assert "Price_to_Sales" not in result.columns
+    assert len(result) == len(fundamentals)

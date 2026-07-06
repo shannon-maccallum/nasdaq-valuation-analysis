@@ -33,6 +33,15 @@ FEATURE_COLUMNS = [
     "PS_avg",
 ]
 
+INFERENCE_FEATURE_COLUMNS = [
+    "MarketCap_log",
+    "Revenue_log",
+    "NetIncome_log",
+    "FreeCashFlow_log",
+    "TotalDebt_log",
+    "Cash_log",
+]
+
 
 @dataclass(frozen=True)
 class RegressionMetrics:
@@ -61,7 +70,8 @@ def clean_fundamentals(df: pd.DataFrame) -> pd.DataFrame:
 
     cleaned = df.copy()
     for column in ["TotalDebt", "Cash", "PE_Ratio", "EV_to_EBITDA"]:
-        cleaned[column] = cleaned[column].fillna(0)
+        if column in cleaned:
+            cleaned[column] = cleaned[column].fillna(0)
     return cleaned
 
 
@@ -70,12 +80,14 @@ def add_log_features(df: pd.DataFrame) -> pd.DataFrame:
 
     transformed = df.copy()
     for column in ["PE_Ratio", "MarketCap", "Revenue", "TotalDebt", "Cash", "Price_to_Sales"]:
-        transformed[f"{column}_log"] = np.log1p(transformed[column])
+        if column in transformed:
+            transformed[f"{column}_log"] = np.log1p(transformed[column])
 
     for column in ["NetIncome", "FreeCashFlow", "EV_to_EBITDA"]:
-        transformed[f"{column}_log"] = np.sign(transformed[column]) * np.log1p(
-            np.abs(transformed[column])
-        )
+        if column in transformed:
+            transformed[f"{column}_log"] = np.sign(transformed[column]) * np.log1p(
+                np.abs(transformed[column])
+            )
     return transformed
 
 
@@ -135,6 +147,36 @@ def prepare_modeling_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
         .copy()
     )
     return modeling_df[FEATURE_COLUMNS], modeling_df["Undervalued_Z"]
+
+
+def prepare_inference_frame(fundamentals: pd.DataFrame, valuation: pd.DataFrame) -> pd.DataFrame:
+    """Build a firm-fundamentals frame for explaining sector-relative valuation.
+
+    The Z-score is a descriptive ranking target. This frame supports a separate
+    inferential model that asks which firm characteristics are associated with
+    higher or lower relative valuation scores.
+    """
+
+    financial_columns = [
+        "Ticker",
+        "MarketCap",
+        "Revenue",
+        "NetIncome",
+        "FreeCashFlow",
+        "TotalDebt",
+        "Cash",
+    ]
+    inference = valuation[["Ticker", "Sector", "Undervalued_Z"]].merge(
+        fundamentals[financial_columns], on="Ticker", how="left"
+    )
+    inference = clean_fundamentals(inference)
+    inference = add_log_features(inference)
+    return (
+        inference[["Ticker", "Sector", "Undervalued_Z"] + INFERENCE_FEATURE_COLUMNS]
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+        .copy()
+    )
 
 
 def evaluate_regressor(model, x_train, y_train, x_validation, y_validation) -> RegressionMetrics:

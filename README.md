@@ -9,6 +9,7 @@ The work combines exploratory data analysis, sector-relative valuation benchmark
 - Built a reproducible fundamentals dataset from Yahoo Finance via `yfinance`
 - Compared companies against market-cap-weighted sector valuation benchmarks
 - Created an `Undervalued_Z` score to identify companies trading at discounts or premiums relative to sector peers
+- Added an inferential regression model to evaluate which firm fundamentals are associated with sector-relative valuation scores
 - Estimated 1-year, 3-year, and 5-year revenue growth required for valuation multiples to revert to sector averages
 - Benchmarked linear regression, ridge regression, random forest, and gradient boosting models
 - Packaged the core transformations into tested Python modules
@@ -81,6 +82,8 @@ Each company is scored against its sector average using:
 - `PS_relative = Price_to_Sales / sector_PS_avg`
 - `ValuationScore = average(EV_relative, PS_relative)`
 - `Undervalued_Z = standardized inverse valuation score`
+
+The `Undervalued_Z` score is a descriptive ranking, not a statistical test or a measure of uncertainty. The inference section therefore adds a separate regression model that evaluates whether logged fundamentals such as market capitalization, revenue, profitability, free cash flow, debt, and cash are associated with the valuation score after controlling for sector.
 
 Required growth is estimated as the annualized growth rate needed for a company's current price-to-sales ratio to converge back to its sector average.
 
